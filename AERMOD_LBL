@@ -1,0 +1,192 @@
+import csv
+import os
+import pandas as pd
+import numpy as np
+import glob
+import chime
+
+# With master files with unique IDs added during previous step, split the year file up into individual chemical files
+with open(r'D:\RSEI_AERMOD_Outputs\UniqueID_Attribute_Core\micro2020_2018_core_UniqID.csv', newline='') as f:
+    reader = csv.reader(f)
+    counter=1
+    files={}
+    for row in reader:
+        chem_num=int(row[4])
+        if chem_num in files:
+            o=files[chem_num]
+        else:
+            o=open(r'D:\RSEI_AERMOD_Outputs\UniqueID_Attribute_Core\Attributes_by_Chemical\\2018_1' + '\\' + 'Chem_' + str(chem_num) + '.csv', 'a', newline='')
+            files[chem_num]=o
+            writer = csv.writer(o)
+            cols= ['rels_', 'chem_', 'facl_', 'media_', 'conc_', 'toxc_', 'score_', 'canc_', 'nocan_', 'pop_', 'uID_']
+            cols_chem=[s + str(chem_num) for s in cols]
+            writer.writerow(cols_chem)
+        writer = csv.writer(o)
+        # exclude columns//only write certain columns
+        col_to_write=[*range(3,14,1)]
+        writer.writerow(row[i] for i in col_to_write)
+        del row
+        counter=counter + 1
+        if counter % 10000 == 0:
+            print(counter)
+    for key in files.keys():
+        files[key].close()
+
+chime.success()
+
+# (~175min) split individual chem folders into individual media folders
+counter = 1
+chem_folder = r'D:\RSEI_AERMOD_Outputs\UniqueID_Attribute_Core\Attributes_by_Chemical\\2016_1'
+csv_files=glob.glob(os.path.join(chem_folder, '*.csv'))
+for fpath in csv_files:
+    with open(fpath, newline='') as to_sort_med:
+        reader = csv.reader(to_sort_med)
+        reader.__next__()
+        med_files={}
+        for row in reader:
+            try:
+                chem_num = int(row[1])
+            except ValueError:
+                print ("Duplicate header found, skipping…")
+                continue
+            media_num=int(row[3])
+            if media_num in med_files:
+                o=med_files[media_num]
+            else:
+                out_directory = r'D:\RSEI_AERMOD_Outputs\UniqueID_Attribute_Core\Attributes_by_Chemical' + '\\' + '2016_1' + '\\' + 'Chem_' + str(chem_num)
+                if not os.path.exists(out_directory):
+                    os.makedirs(out_directory)
+                o=open(out_directory + '\\' + 'Media_' + str(media_num) + '.csv', 'a', newline='')
+                med_files[media_num]=o
+                writer = csv.writer(o)
+                cols= ['rels_', 'chem_', 'facl_', 'media_', 'conc_', 'toxc_', 'score_', 'canc_', 'nocan_', 'pop_', 'uID_']
+                cols_chem=[s + str(chem_num) for s in cols]
+                writer.writerow(cols_chem)
+            writer = csv.writer(o)
+            writer.writerow(row)
+            del row
+            counter=counter + 1
+            if counter % 10000 == 0:
+                print(counter)
+        for key in med_files.keys():
+            med_files[key].close()
+
+chime.success()
+
+# # (~1min) Aggregate media files: for each unique Id (cell), take the sum of the conc values so that there is only one conc value for each cell per chemical
+# df = pd.read_csv(r"D:\RSEI_AERMOD_Outputs\UniqueID_Attribute_Core\Attributes_by_Chemical\2017_1\Chem_346\Media_2.csv")
+
+# ID_group=df.groupby(['uID_346'], as_index=False).agg({'rels_346': 'first', 'chem_346': 'first', 'facl_346': 'first', 'media_346': 'first', 'conc_346': 'sum', 'toxc_346': 'sum', 'score_346': 'sum', 'canc_346': 'sum', 'nocan_346': 'sum', 'pop_346': 'first'})
+
+# ID_group.to_csv(r"D:\RSEI_AERMOD_Outputs\UniqueID_Attribute_Core\Attributes_by_Chemical\2017_1\Chem_346\Aggregated_Media\Media_2.csv", index=False, header=True)
+
+from glob import iglob
+# loop for media agg:
+media_dir = r"D:\RSEI_AERMOD_Outputs\UniqueID_Attribute_Core\Attributes_by_Chemical\2018_1\Chem_346"
+media_csv_files=glob.glob(os.path.join(media_dir, '*.csv'))
+agg_dir= media_dir + '\\' + 'Aggregated_Media'
+os.makedirs(agg_dir)
+for file in media_csv_files:
+    current_file=os.path.basename(os.path.normpath(file))
+    df= pd.read_csv(file)
+    ID_group=df.groupby(['uID_346'], as_index=False).agg({'rels_346': 'first', 'chem_346': 'first', 'facl_346': 'first', 'media_346': 'first', 'conc_346': 'sum', 'toxc_346': 'sum', 'score_346': 'sum', 'canc_346': 'sum', 'nocan_346': 'sum', 'pop_346': 'first'})
+    ID_group.to_csv(agg_dir + '\\' + current_file, index=False, header=True)
+
+chem_dir=r"D:\RSEI_AERMOD_Outputs\UniqueID_Attribute_Core\Attributes_by_Chemical\**\*347"
+file_list= [f for f in iglob(chem_dir, recursive=True) if os.path.isdir(f)]
+for file in file_list:
+    media_csv_files=glob.glob(os.path.join(file, '*.csv'))
+    agg_dir= file + '\\' + 'Aggregated_Media'
+    os.makedirs(agg_dir)
+    for media in media_csv_files:
+        current_file=os.path.basename(os.path.normpath(media))
+        df= pd.read_csv(media)
+        ID_group=df.groupby(['uID_347'], as_index=False).agg({'rels_347': 'first', 'chem_347': 'first', 'facl_347': 'first', 'media_347': 'first', 'conc_347': 'sum', 'toxc_347': 'sum', 'score_347': 'sum', 'canc_347': 'sum', 'nocan_347': 'sum', 'pop_347': 'first'})
+        ID_group.to_csv(agg_dir + '\\' + current_file, index=False, header=True)
+
+
+# count number of rows in each chemical file
+with open(r'D:\RSEI_AERMOD_Outputs\UniqueID_Attribute_Core\Attributes_by_Chemical\\2018_1' + '\\' + 'summary.txt', 'a') as c:
+    c.write("Number of rows within each chemical csv:" + '\n')
+    folder=r'D:\RSEI_AERMOD_Outputs\UniqueID_Attribute_Core\Attributes_by_Chemical\\2018_1'
+    csv_files=glob.glob(os.path.join(folder, '*.csv'))
+    for fpath in csv_files:
+        to_count = open(fpath)
+        reader = csv.reader(to_count)
+        lines = 0
+        for row in reader:
+            lines += 1
+        c.write(str(os.path.basename(fpath)) + ": " + str(lines) + '\n')
+    c.close()
+chime.success()  
+
+# batch wise copy rows of aggregated media into appropriate yeear gdbs (example with Diazinon)
+import glob
+from glob import iglob
+
+agg_med_dir = r"D:\RSEI_AERMOD_Outputs\UniqueID_Attribute_Core\Attributes_by_Chemical\**\Chem_189\Aggregated_Media"
+agg_file_list = [f for f in iglob(agg_med_dir, recursive=True) if os.path.isdir(f)]
+for file in agg_file_list:
+    individual_med_file = glob.glob(os.path.join(file, '*.csv'))
+    single_file_path = str(individual_med_file[0])
+    path = os.path.normpath(single_file_path)
+    path_list = path.split(os.sep)
+    path_list[4]
+    year = str(path_list[4])
+    year=year[:-2]
+    year_name = 'USA_' + year
+    outpath_dir = r"E:\AERMOD\Joined_shps_Diazinon"
+    outpath = outpath_dir + '\\' + year_name + '.gdb'
+    if not os.path.exists(outpath):
+        outname = year_name + '.gdb'
+        arcpy.CreateFileGDB_management(outpath_dir, outname)
+    for med_file in individual_med_file:
+        in_table=str(med_file)
+        med_file_norm=os.path.normpath(in_table)
+        med_file_piece=med_file_norm.split(os.sep)
+        current_media=str(med_file_piece[7])[:-4]
+        specific_out= outpath + '\\' + str(med_file_piece[5]) + '_' + current_media 
+        arcpy.CopyRows_management(in_table, specific_out)
+   
+
+# batch copy empty shp grid into each individual yearly gdb:
+gdb_dir = r"E:\AERMOD\Joined_shps_Diazinon\**"
+folder_list = [f for f in iglob(gdb_dir, recursive=True) if os.path.isdir(f)]
+for file in folder_list:
+    arcpy.FeatureClassToGeodatabase_conversion(["D:\RSEI_AERMOD_Outputs\poly_gc14_conus_810m_top.shp"], file)
+
+
+# year by year, joining empty shp with media chem data and exporting to the correct gdb that holds all years, all media for one chemcial
+arcpy.env.workspace = r"E:\AERMOD\Joined_shps_Diazinon\USA_2001.gdb"
+arcpy.management.MakeQueryTable("poly_gc14_conus_810m_top;Chem_189_Media_2", "QueryTable_2001_M2", "USE_KEY_FIELDS", None, None, "poly_gc14_conus_810m_top.UniqueID = Chem_189_Media_2.uID_189")
+arcpy.management.CopyFeatures("QueryTable_2001_M2", r"E:\AERMOD\AllYears_189.gdb\USA_2001_M2")
+
+# LOOP THROUGH  join via makiing query table (M2 only... must do again for M1)
+gdb_dir = r'E:\AERMOD\Joined_shps_TCE\USA_*'
+folder_list = [f for f in iglob(gdb_dir, recursive=True) if os.path.isdir(f)]
+for folder in folder_list:
+    arcpy.env.workspace = folder
+    year=folder.split('\\')[3]
+    year=year[:-4]
+    year=year[-4:]
+    QT_name = 'QueryTable_' + str(year) + '_M2'
+    output_path = r'E:\AERMOD\AllYears_567.gdb\USA_' + year + '_M2'
+    arcpy.management.MakeQueryTable('poly_gc14_conus_810m_top;Chem_567_Media_2', QT_name, 'USE_KEY_FIELDS', None, None, 'poly_gc14_conus_810m_top.UniqueID = Chem_567_Media_2.uID_567')
+    arcpy.management.CopyFeatures(QT_name, output_path)
+
+# once M1 and M2 rasteer created, add them together in Arcpy window with this code:
+import arcpy, os, math
+from arcpy.sa import *
+arcpy.env.workspace = r"D:\RSEI_AERMOD_Outputs\Joined_Shps\All_years.gdb"
+rasters = arcpy.ListRasters("*", "ALL")
+rasters
+start_yr = 2000
+end_yr = 2020
+curr_yr = start_yr
+while curr_yr <= end_yr:
+    r1 = 'USA_' + str(curr_yr) + '_M1_Proj_Clip_Raster1'
+    r2 = 'USA_' + str(curr_yr) + '_M2_Proj_Clip_Raster1'
+    outrast = Raster(r1) + Raster(r2)
+    outrast.save(r"D:\RSEI_AERMOD_Outputs\Joined_Shps\AERMOD_Pb_Rasters.gdb\USA_" + str(curr_yr) + '_M1M2')
+    curr_yr = curr_yr + 1
+
